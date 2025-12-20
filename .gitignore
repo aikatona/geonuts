@@ -1,0 +1,27 @@
+# RStudio and build artefacts
+.Rproj.user
+.Rhistory
+.RData
+.Rapp.history
+.Ruserdata
+
+# Vignettes and markdown outputs
+inst/doc
+/doc/
+/Meta/
+README.html
+README_files/
+*.utf8.md
+*.knit.md
+vignettes/*.html
+
+# macOS / Windows artefacts
+.DS_Store
+Thumbs.db
+
+# Logs, caches, check outputs
+.Rcheck/
+NUL.Rproj.user/
+.Rhistory
+.Rproj.user/
+.Rhistory
