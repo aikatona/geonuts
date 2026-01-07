@@ -53,16 +53,10 @@ the input points (matched vs. unmatched) for validation. Works with both
 single-level and multi-level (\code{level = "all"}) outputs from \code{\link{get_nuts}}.
 }
 \examples{
-\dontrun{
-  lat <- c(52.52, 48.86, 41.90)
-  lon <- c(13.405, 2.352, 12.496)
-  res <- get_nuts(lat, lon, level = "all", year = 2021, resolution = 20)
-
+\donttest{
+  res <- get_nuts(52.52, 13.405, level = 3, year = 2021, resolution = 20)
   p <- map_nuts(res, map_level = 3)
   print(p)
-
-  p_it <- map_nuts(res, map_level = 3, country = "IT", show_points = TRUE)
-  print(p_it)
 }
 }
 \seealso{

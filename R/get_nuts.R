@@ -42,22 +42,12 @@
 #'
 #' @seealso \code{\link{map_nuts}}
 #' @examples
-#' \dontrun{
-#'   lat <- c(52.52, 48.86, 41.90)  # Berlin, Paris, Rome (approx.)
-#'   lon <- c(13.405, 2.352, 12.496)
-#'
-#'   # Single level
-#'   nuts3 <- get_nuts(lat, lon, level = 3, year = 2021, resolution = 20)
-#'
-#'   # All levels, with country pre-filter and nearest fallback (5 km cap)
-#'   all_lvls <- get_nuts(lat, lon, level = "all", country = "DE",
-#'                        match_strategy = "nearest", nearest_max_km = 5)
+#' \donttest{
+#'   res <- get_nuts(52.52, 13.405, level = 3, year = 2021, resolution = 20)
+#'   head(res)
 #' }
 #' @export
-#' @importFrom sf st_as_sf st_transform st_crs st_join st_bbox st_as_sfc st_intersects st_nearest_feature st_distance st_buffer st_make_valid
-#' @importFrom units set_units
-#' @importFrom giscoR gisco_get_countries gisco_get_nuts
-#' @importFrom eurostat get_eurostat_geospatial
+#' @importFrom sf st_as_sf st_transform st_crs st_make_valid
 get_nuts <- function(latitude,
                      longitude,
                      level = "all",
@@ -155,6 +145,7 @@ get_nuts <- function(latitude,
 
 #' Convert numeric lat/lon vectors to sf POINT (WGS84)
 #' @keywords internal
+#' @importFrom sf st_as_sf st_crs st_transform
 .coords_to_sf <- function(latitude, longitude, crs_input = 4326) {
   pts <- sf::st_as_sf(
     data.frame(row_id = seq_along(latitude), lon = longitude, lat = latitude),
@@ -170,6 +161,7 @@ get_nuts <- function(latitude,
 
 #' Cached Eurostat geospatial layer
 #' @keywords internal
+#' @importFrom eurostat get_eurostat_geospatial
 .get_cached_shape <- local({
   cache <- new.env(parent = emptyenv())
   function(level, year, resolution, verbose = TRUE) {
@@ -204,6 +196,7 @@ get_nuts <- function(latitude,
 
 #' Pre-filter polygons by bounding box of points (safe with fallback)
 #' @keywords internal
+#' @importFrom sf st_bbox st_as_sfc st_intersects
 .prefilter_by_bbox <- function(shp, pts) {
   if (is.null(shp) || !inherits(shp, "sf")) {
     stop("Internal error: expected an 'sf' object for 'shp' but got NULL/invalid.", call. = FALSE)
@@ -211,8 +204,17 @@ get_nuts <- function(latitude,
   if (nrow(shp) == 0L) return(shp)
 
   # Build bbox, then expand slightly to be robust to precision at edges
-  bb <- sf::st_as_sfc(sf::st_bbox(pts))
-  bb_expanded <- suppressWarnings(sf::st_buffer(bb, dist = 0.05))  # ~ tiny expansion in degrees
+  bb <- sf::st_bbox(pts)
+
+  # Numeric expansion (degrees) to avoid s2/st_buffer issues on lon/lat
+  expand <- 0.05  # ~ tiny expansion in degrees
+  bb_expanded <- bb
+  bb_expanded["xmin"] <- bb["xmin"] - expand
+  bb_expanded["xmax"] <- bb["xmax"] + expand
+  bb_expanded["ymin"] <- bb["ymin"] - expand
+  bb_expanded["ymax"] <- bb["ymax"] + expand
+
+  bb_expanded <- sf::st_as_sfc(bb_expanded)
 
   idx <- sf::st_intersects(shp, bb_expanded, sparse = TRUE)
   keep <- lengths(idx) > 0L
@@ -226,6 +228,8 @@ get_nuts <- function(latitude,
 
 #' Spatial join + optional nearest fallback (robust; km units)
 #' @keywords internal
+#' @importFrom sf st_join st_within st_intersects st_nearest_feature st_distance st_buffer
+#' @importFrom units set_units
 .join_points_to_nuts <- function(pts, shp, match_strategy = "within", nearest_max_km = Inf, level = NA_integer_) {
   # 1) Primary join: strict topology
   j <- suppressWarnings(sf::st_join(pts, shp, left = TRUE, join = sf::st_within))
@@ -238,6 +242,13 @@ get_nuts <- function(latitude,
   )
   out$match_status  <- ifelse(is.na(out$nuts_id), "unmatched", "matched")
   out$match_dist_km <- NA_real_
+
+  # Dummy references so CRAN sees actual use when kept in Imports (no runtime effect)
+  if (FALSE) {
+    sf::st_nearest_feature
+    sf::st_distance
+    sf::st_join
+  }
 
   # 2) Tiny border buffer pass (fix vertex-touch cases); ~0.0005 deg ~ 55 m
   border_idx <- which(is.na(out$nuts_id))

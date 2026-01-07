@@ -71,16 +71,9 @@ joins on continental layers (with safe fallback).
 }
 }
 \examples{
-\dontrun{
-  lat <- c(52.52, 48.86, 41.90)  # Berlin, Paris, Rome (approx.)
-  lon <- c(13.405, 2.352, 12.496)
-
-  # Single level
-  nuts3 <- get_nuts(lat, lon, level = 3, year = 2021, resolution = 20)
-
-  # All levels, with country pre-filter and nearest fallback (5 km cap)
-  all_lvls <- get_nuts(lat, lon, level = "all", country = "DE",
-                       match_strategy = "nearest", nearest_max_km = 5)
+\donttest{
+  res <- get_nuts(52.52, 13.405, level = 3, year = 2021, resolution = 20)
+  head(res)
 }
 }
 \seealso{

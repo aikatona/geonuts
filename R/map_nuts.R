@@ -25,20 +25,13 @@
 #'
 #' @seealso \code{\link{get_nuts}}
 #' @examples
-#' \dontrun{
-#'   lat <- c(52.52, 48.86, 41.90)
-#'   lon <- c(13.405, 2.352, 12.496)
-#'   res <- get_nuts(lat, lon, level = "all", year = 2021, resolution = 20)
-#'
+#' \donttest{
+#'   res <- get_nuts(52.52, 13.405, level = 3, year = 2021, resolution = 20)
 #'   p <- map_nuts(res, map_level = 3)
 #'   print(p)
-#'
-#'   p_it <- map_nuts(res, map_level = 3, country = "IT", show_points = TRUE)
-#'   print(p_it)
 #' }
 #' @export
-#' @importFrom ggplot2 ggplot geom_sf scale_fill_gradient geom_point labs theme_void theme element_text guides guide_colourbar
-#' @importFrom eurostat get_eurostat_geospatial
+#' @importFrom ggplot2 labs theme element_text
 map_nuts <- function(nuts,
                      map_level = 3,
                      country = NULL,
@@ -149,6 +142,7 @@ map_nuts <- function(nuts,
 
 #' Build map data (frequencies, splits, and an auto-zoom extent)
 #' @keywords internal
+#' @importFrom sf st_bbox
 .build_map_data <- function(shp, df, nuts_col) {
   # Frequency per region (exclude NA region ids)
   tab <- table(df[[nuts_col]], useNA = "no")
@@ -193,6 +187,8 @@ map_nuts <- function(nuts,
 
 #' Render the map (ggplot2)
 #' @keywords internal
+#' @importFrom ggplot2 ggplot geom_sf scale_fill_gradient geom_point theme_void theme element_text guides guide_colourbar aes coord_sf
+#' @importFrom grid unit
 .render_map <- function(md,
                         border_col,
                         low_col,
@@ -202,15 +198,17 @@ map_nuts <- function(nuts,
                         show_points) {
 
   freq_vals <- md$mapdf$Frequency
-  multi_in_region <- any(freq_vals > 1, na.rm = TRUE)
-
   base <- ggplot2::ggplot(md$mapdf)
 
+  multi_in_region <- any(freq_vals > 1, na.rm = TRUE)
+  max_freq <- max(freq_vals, na.rm = TRUE)
+
+  if (!is.finite(max_freq) || max_freq < 2) {
+    multi_in_region <- FALSE
+  }
+
   if (multi_in_region) {
-    # Build tidy integer breaks from 1..max
-    max_freq <- max(freq_vals, na.rm = TRUE)
     breaks <- seq(1L, max_freq, by = max(1L, floor(max_freq / 4)))
-    # Ensure last break hits the max
     if (breaks[length(breaks)] != max_freq) breaks <- c(breaks, max_freq)
 
     p <- base +
@@ -236,13 +234,11 @@ map_nuts <- function(nuts,
         )
       )
   } else {
-    # Neutral basemap when all regions have 0/1 (or all NA)
     p <- base +
       ggplot2::geom_sf(fill = "grey97", color = border_col, linewidth = 0.15) +
       ggplot2::guides(fill = "none")
   }
 
-  # Optional points
   if (isTRUE(show_points)) {
     if (nrow(md$coords_found) > 0L) {
       p <- p + ggplot2::geom_point(
