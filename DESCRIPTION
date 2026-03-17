@@ -1,7 +1,7 @@
 Package: geonuts
 Type: Package
 Title: Identification and Visualisation of European NUTS Regions from Geolocations
-Version: 1.0.0
+Version: 1.0.1
 Authors@R: 
     c(
       person("Attila I.", "Katona", 
